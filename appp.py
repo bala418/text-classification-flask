@@ -18,9 +18,7 @@ global data
 app = Flask(__name__)
 
 app.secret_key = "text-classification"
-MONGODB_URI = (
-    "mongodb+srv://bala:bala@cluster0.1wl0hhu.mongodb.net/?retryWrites=true&w=majority"
-)
+MONGODB_URI = "mongodb://localhost:27017/text-classification"
 client = MongoClient(MONGODB_URI)
 db = client["text-classification"]
 
