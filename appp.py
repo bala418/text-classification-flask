@@ -49,6 +49,15 @@ def home():
         return redirect("/login")
 
 
+# analysis page route
+@app.route("/analysis")
+def analysis():
+    if "pid" in session:
+        return render_template("analysis.html")
+    else:
+        return redirect("/login")
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":

@@ -118,7 +118,11 @@ input[type="text"] {
 		<form action="{{ url_for('predict')}}" method="POST">
 			<input type="text" name="message" rows="4" cols="50" placeholder="Enter The News Headline.."></input>
 			<input class="searchbutton" type="submit" class="btn-info" value="Predict" align="center">
+      <!-- button if clicked redirect to analysis page -->
+      <a href="{{ url_for('analysis')}}" class="btn btn-info" role="button">Analysis</a>
+      
 			<h2 class="header2"> Avaialable Categories to predict:</h2>
+
 			
 		</form>
 		<ul class="category"> 
