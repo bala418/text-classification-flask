@@ -1,4 +1,13 @@
-from flask import Flask, render_template, url_for, request, session, redirect, flash, url_for
+from flask import (
+    Flask,
+    render_template,
+    url_for,
+    request,
+    session,
+    redirect,
+    flash,
+    url_for,
+)
 from sklearn.model_selection import train_test_split
 
 from pymongo import MongoClient
@@ -8,13 +17,59 @@ global data
 
 app = Flask(__name__)
 
+app.secret_key = "text-classification"
+MONGODB_URI = (
+    "mongodb+srv://bala:bala@cluster0.1wl0hhu.mongodb.net/?retryWrites=true&w=majority"
+)
+client = MongoClient(MONGODB_URI)
+db = client["text-classification"]
 
-@app.route('/')
+
+@app.route("/")
+def index():
+    return render_template("login.html")
+
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        email = request.form["email"]
+        pid = request.form["pid"]
+        password = request.form["password"]
+        db.users.insert_one({"email": email, "pid": pid, "password": password})
+        return redirect(url_for("home"))
+    return render_template("signup.html")
+
+
+@app.route("/home")
 def home():
-    return render_template('home.html')
+    if "pid" in session:
+        return render_template("home.html")
+    else:
+        return redirect("/login")
 
 
-@app.route('/predict', methods=['POST'])
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        pid = request.form["pid"]
+        password = request.form["password"]
+        user = db.users.find_one({"pid": pid, "password": password})
+        if user is not None:
+            session["pid"] = pid
+            return redirect(url_for("home"))
+        else:
+            flash("Invalid Patient ID or Password. Please Try again.")
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.pop("pid", None)
+    return redirect(url_for("login"))
+
+
+@app.route("/predict", methods=["POST"])
 def predict():
 
     import pandas as pd
@@ -24,26 +79,153 @@ def predict():
 
     from nltk.stem import PorterStemmer
 
-    cachedStopWords = ["i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "yourself", "yourselves", "he", "him", "his", "himself", "she", "her", "hers", "herself", "it", "its", "itself", "they", "them", "their", "theirs", "themselves", "what", "which", "who", "whom", "this", "that", "these", "those", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "having", "do", "does", "did", "doing", "a", "an", "the", "and", "but", "if", "or", "because", "as",
-                       "until", "while", "of", "at", "by", "for", "with", "about", "against", "between", "into", "through", "during", "before", "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now"]
+    cachedStopWords = [
+        "i",
+        "me",
+        "my",
+        "myself",
+        "we",
+        "our",
+        "ours",
+        "ourselves",
+        "you",
+        "your",
+        "yours",
+        "yourself",
+        "yourselves",
+        "he",
+        "him",
+        "his",
+        "himself",
+        "she",
+        "her",
+        "hers",
+        "herself",
+        "it",
+        "its",
+        "itself",
+        "they",
+        "them",
+        "their",
+        "theirs",
+        "themselves",
+        "what",
+        "which",
+        "who",
+        "whom",
+        "this",
+        "that",
+        "these",
+        "those",
+        "am",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "having",
+        "do",
+        "does",
+        "did",
+        "doing",
+        "a",
+        "an",
+        "the",
+        "and",
+        "but",
+        "if",
+        "or",
+        "because",
+        "as",
+        "until",
+        "while",
+        "of",
+        "at",
+        "by",
+        "for",
+        "with",
+        "about",
+        "against",
+        "between",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "to",
+        "from",
+        "up",
+        "down",
+        "in",
+        "out",
+        "on",
+        "off",
+        "over",
+        "under",
+        "again",
+        "further",
+        "then",
+        "once",
+        "here",
+        "there",
+        "when",
+        "where",
+        "why",
+        "how",
+        "all",
+        "any",
+        "both",
+        "each",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "no",
+        "nor",
+        "not",
+        "only",
+        "own",
+        "same",
+        "so",
+        "than",
+        "too",
+        "very",
+        "s",
+        "t",
+        "can",
+        "will",
+        "just",
+        "don",
+        "should",
+        "now",
+    ]
 
     ps = PorterStemmer()
 
     def preprocess_string(string):
 
-        cleaned_str = re.sub('[^a-z\s]+', ' ', string, flags=re.IGNORECASE)
-        cleaned_str = re.sub('(\s+)', ' ', cleaned_str)
+        cleaned_str = re.sub("[^a-z\s]+", " ", string, flags=re.IGNORECASE)
+        cleaned_str = re.sub("(\s+)", " ", cleaned_str)
         cleaned_str = cleaned_str.lower()
 
         cleaned = ps.stem(cleaned_str)
 
-        cleaned_str1 = ' '.join(
-            [word for word in cleaned.split() if word not in cachedStopWords])
+        cleaned_str1 = " ".join(
+            [word for word in cleaned.split() if word not in cachedStopWords]
+        )
 
         return cleaned_str1
 
     class MultinomialNaiveBayes:
-
         def __init__(self, unique_classes):
 
             self.classes = unique_classes
@@ -62,15 +244,16 @@ def predict():
 
             self.headline = dataset
             self.category = labels
-            self.bow_dicts = np.array([defaultdict(lambda:0)
-                                      for index in range(self.classes.shape[0])])
+            self.bow_dicts = np.array(
+                [defaultdict(lambda: 0) for index in range(self.classes.shape[0])]
+            )
 
             if not isinstance(self.headline, np.ndarray):
                 self.headline = np.array(self.headline)
             if not isinstance(self.category, np.ndarray):
                 self.category = np.array(self.category)
 
-        # Developing Bag of Words for each category
+            # Developing Bag of Words for each category
             for cat_index, cat in enumerate(self.classes):
 
                 # filter all headline of category == cat
@@ -78,14 +261,14 @@ def predict():
 
                 # removing stopwords,tokenizing headlines
 
-                cleaned_headline = [preprocess_string(
-                    cat_headline) for cat_headline in all_cat_headline]
+                cleaned_headline = [
+                    preprocess_string(cat_headline) for cat_headline in all_cat_headline
+                ]
 
                 cleaned_headline = pd.DataFrame(data=cleaned_headline)
 
                 # Bag of words for particular category
-                np.apply_along_axis(self.bagOfWords, 1,
-                                    cleaned_headline, cat_index)
+                np.apply_along_axis(self.bagOfWords, 1, cleaned_headline, cat_index)
 
                 prob_classes = np.empty(self.classes.shape[0])
                 all_words = []
@@ -93,13 +276,15 @@ def predict():
                 for cat_index, cat in enumerate(self.classes):
 
                     # Calculating prior probability p(c) for each class
-                    prob_classes[cat_index] = np.sum(
-                        self.category == cat)/float(self.category.shape[0])
+                    prob_classes[cat_index] = np.sum(self.category == cat) / float(
+                        self.category.shape[0]
+                    )
 
                     # Calculating total counts of all the words of each class
 
-                    cat_word_counts[cat_index] = np.sum(np.array(
-                        list(self.bow_dicts[cat_index].values())))+1  # |v| is remaining to be added
+                    cat_word_counts[cat_index] = (
+                        np.sum(np.array(list(self.bow_dicts[cat_index].values()))) + 1
+                    )  # |v| is remaining to be added
 
                     # get all words of this category
                     all_words += self.bow_dicts[cat_index].keys()
@@ -110,11 +295,21 @@ def predict():
                 self.vocab_length = self.vocab.shape[0]
 
                 # computing denominator value
-                denoms = np.array([cat_word_counts[cat_index]+self.vocab_length +
-                                  1 for cat_index, cat in enumerate(self.classes)])
+                denoms = np.array(
+                    [
+                        cat_word_counts[cat_index] + self.vocab_length + 1
+                        for cat_index, cat in enumerate(self.classes)
+                    ]
+                )
 
-                self.cats_info = [(self.bow_dicts[cat_index], prob_classes[cat_index],
-                                   denoms[cat_index]) for cat_index, cat in enumerate(self.classes)]
+                self.cats_info = [
+                    (
+                        self.bow_dicts[cat_index],
+                        prob_classes[cat_index],
+                        denoms[cat_index],
+                    )
+                    for cat_index, cat in enumerate(self.classes)
+                ]
                 self.cats_info = np.array(self.cats_info)
 
         def getHeadlineProb(self, test_headline):
@@ -125,22 +320,29 @@ def predict():
             # finding probability w.r.t each class of the given test example
             for cat_index, cat in enumerate(self.classes):
 
-                for test_token in test_headline.split():  # split the test example and get p of each test word
+                for (
+                    test_token
+                ) in (
+                    test_headline.split()
+                ):  # split the test example and get p of each test word
 
                     # get total count of this test token from it's respective training dict to get numerator value
-                    test_token_counts = self.cats_info[cat_index][0].get(
-                        test_token, 0)+1
+                    test_token_counts = (
+                        self.cats_info[cat_index][0].get(test_token, 0) + 1
+                    )
 
-                    test_token_prob = test_token_counts / \
-                        float(self.cats_info[cat_index][2])
+                    test_token_prob = test_token_counts / float(
+                        self.cats_info[cat_index][2]
+                    )
 
-                # To prevent underflow, log the value
+                    # To prevent underflow, log the value
                     likelihood_prob[cat_index] += np.log(test_token_prob)
 
             post_prob = np.empty(self.classes.shape[0])
             for cat_index, cat in enumerate(self.classes):
-                post_prob[cat_index] = likelihood_prob[cat_index] + \
-                    np.log(self.cats_info[cat_index][1])
+                post_prob[cat_index] = likelihood_prob[cat_index] + np.log(
+                    self.cats_info[cat_index][1]
+                )
 
             return post_prob
 
@@ -160,18 +362,24 @@ def predict():
             return np.array(predictions)
 
     # reading the training data-set
-    training_set = pd.read_csv('news.csv', sep=',')
+    training_set = pd.read_csv("news.csv", sep=",")
 
     # getting training set headline labels
-    y_train = training_set['Category'].values
-    x_train = training_set['Title'].values
+    y_train = training_set["Category"].values
+    x_train = training_set["Title"].values
     train_data, test_data, train_labels, test_labels = train_test_split(
-        x_train, y_train, shuffle=True, test_size=0.25, random_state=42, stratify=y_train)
+        x_train,
+        y_train,
+        shuffle=True,
+        test_size=0.25,
+        random_state=42,
+        stratify=y_train,
+    )
     classes1 = np.unique(train_labels)
     nb = MultinomialNaiveBayes(classes1)
     nb.train(train_data, train_labels)
     pclasses = nb.test(test_data)
-    acc1 = np.sum(pclasses == test_labels)/float(test_labels.shape[0])
+    acc1 = np.sum(pclasses == test_labels) / float(test_labels.shape[0])
 
     acc = round(acc1, 2)
     classes = np.unique(y_train)
@@ -181,27 +389,41 @@ def predict():
     nb = MultinomialNaiveBayes(classes)
     nb.train(x_train, y_train)
 
-    if request.method == 'POST':
-        message = request.form['message']
+    if request.method == "POST":
+        message = request.form["message"]
         data = [message]
 
         my_prediction = nb.test(data)
 
-    if(my_prediction[0] == 1):
-        return render_template('sports.html', prediction=my_prediction, data=data[0], acc=acc)
-    if(my_prediction[0] == 2):
-        return render_template('politics.html', prediction=my_prediction, data=data[0], acc=acc)
-    if(my_prediction[0] == 3):
-        return render_template('tv.html', prediction=my_prediction, data=data[0], acc=acc)
-    if(my_prediction[0] == 4):
-        return render_template('intnews.html', prediction=my_prediction, data=data[0], acc=acc)
-    if(my_prediction[0] == 5):
-        return render_template('tech.html', prediction=my_prediction, data=data[0], acc=acc)
-    if(my_prediction[0] == 6):
-        return render_template('business.html', prediction=my_prediction, data=data[0], acc=acc)
-    if(my_prediction[0] == 7):
-        return render_template('health.html', prediction=my_prediction, data=data[0], acc=acc)
+    if my_prediction[0] == 1:
+        return render_template(
+            "sports.html", prediction=my_prediction, data=data[0], acc=acc
+        )
+    if my_prediction[0] == 2:
+        return render_template(
+            "politics.html", prediction=my_prediction, data=data[0], acc=acc
+        )
+    if my_prediction[0] == 3:
+        return render_template(
+            "tv.html", prediction=my_prediction, data=data[0], acc=acc
+        )
+    if my_prediction[0] == 4:
+        return render_template(
+            "intnews.html", prediction=my_prediction, data=data[0], acc=acc
+        )
+    if my_prediction[0] == 5:
+        return render_template(
+            "tech.html", prediction=my_prediction, data=data[0], acc=acc
+        )
+    if my_prediction[0] == 6:
+        return render_template(
+            "business.html", prediction=my_prediction, data=data[0], acc=acc
+        )
+    if my_prediction[0] == 7:
+        return render_template(
+            "health.html", prediction=my_prediction, data=data[0], acc=acc
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
