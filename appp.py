@@ -9,16 +9,21 @@ from flask import (
     url_for,
 )
 from sklearn.model_selection import train_test_split
-
+from dotenv import load_dotenv
+import os
 from pymongo import MongoClient
+
 
 global my_prediction
 global data
 
 app = Flask(__name__)
+load_dotenv()
+
+mongoURI = os.getenv("MONGO_URI")
 
 app.secret_key = "text-classification"
-MONGODB_URI = "mongodb://localhost:27017/text-classification"
+MONGODB_URI = mongoURI
 client = MongoClient(MONGODB_URI)
 db = client["text-classification"]
 
